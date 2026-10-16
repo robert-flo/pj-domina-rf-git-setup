@@ -71,6 +71,7 @@ setup_github_auth() {
     echo -ne "  ${GRAY}Re-authenticate? (y/N):${NC} "
     read -r reauth
     if [[ ! $reauth =~ ^[yY]$ ]]; then
+      gh auth setup-git --hostname github.com 2> /dev/null || true
       return 0
     fi
     gh auth logout --hostname github.com
@@ -87,6 +88,7 @@ setup_github_auth() {
   fi
 
   if echo "$GITHUB_TOKEN" | gh auth login --with-token --hostname github.com; then
+    gh auth setup-git --hostname github.com 2> /dev/null || true
     print_success "Authentication successful"
   else
     print_error "Authentication failed"
