@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Changed
+
+- domina(git-setup): comandos del workflow en ~/bin ([#1](https://github.com/robert-flo/git-setup/pull/1)). <!-- changelog-pr:1 -->
+
+
 ## [0.3.0] - 2026-08-01
 
 ### Fixed

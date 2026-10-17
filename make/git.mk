@@ -6,8 +6,9 @@
 # ──── Overview: 7 targets for the full git commit/push cycle ─
 #
 # 📎 Aliases & Targets:
-#    Each short alias is also a managed direct command and Git alias after
-#    git-setup config: `s`, `git s`, and `make s` share one workflow surface.
+#    Each short alias is also a managed direct command (in ~/bin, or
+#    $GIT_SETUP_BIN_DIR) and Git alias after git-setup config: `s`, `git s`,
+#    and `make s` share one workflow surface.
 #    Input is positional (`cm "message"`, `fc "query"`); MSG and CODE remain
 #    Make compatibility variables. Use DRY_RUN=1 to preview mutating commands.
 #    Managed short commands verify Git repository context before validating

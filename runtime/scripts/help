@@ -37,7 +37,8 @@ HELP_EOF
       config, delta.gitconfig, gitattributes.global, gitconfig_aliases,
       gitignore.global, and shell_aliases.
 
-    config also refreshes the managed Git workflow commands in ~/.local/bin.
+    config also refreshes the managed Git workflow commands in ~/bin (or
+    GIT_SETUP_BIN_DIR) and removes legacy managed leftovers from ~/.local/bin.
     Use each operation directly, as git <alias>, or as make <alias>.
 
     ~/.config/git/gitconfig.local is personal. It is loaded last and is never
@@ -68,11 +69,14 @@ HELP_EOF
   AUTOMATION
     Avoid identity prompts with:
       NAME='Ada Lovelace' EMAIL='ada@example.com' git-setup config
+    Override the managed workflow command directory with:
+      GIT_SETUP_BIN_DIR="$HOME/bin" git-setup config
 
   CLEANUP
     clean requires typing yes. It removes git-setup SSH keys, GPG keys for the
-    configured email, managed Git files, and the GitHub CLI authentication.
-    gitconfig.local is preserved.
+    configured email, managed Git files, managed workflow commands in ~/bin
+    (and any legacy managed leftovers in ~/.local/bin), and the GitHub CLI
+    authentication. gitconfig.local is preserved.
 
   RECOMMENDED FLOW
     1. git-setup verify
