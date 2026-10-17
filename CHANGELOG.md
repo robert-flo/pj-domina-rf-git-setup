@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Changed
+
+- Install managed workflow commands in `~/bin` by default (overridable with `GIT_SETUP_BIN_DIR`, keeping `WORKFLOW_COMMAND_DIR` as a backward-compatible alias), remove legacy managed leftovers from `~/.local/bin` during `config` and `clean` while keeping unrelated user tools, and report `PATH` ordering hints in `verify`.
+
+
 ## [0.3.0] - 2026-08-01
 
 ### Fixed
