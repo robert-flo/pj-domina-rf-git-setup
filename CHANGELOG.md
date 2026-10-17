@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
-- Install managed workflow commands in `~/bin` by default (overridable with `GIT_SETUP_BIN_DIR`, keeping `WORKFLOW_COMMAND_DIR` as a backward-compatible alias), remove legacy managed leftovers from `~/.local/bin` during `config` and `clean` while keeping unrelated user tools, and report `PATH` ordering hints in `verify`.
+- domina(git-setup): comandos del workflow en ~/bin ([#1](https://github.com/robert-flo/git-setup/pull/1)). <!-- changelog-pr:1 -->
 
 
 ## [0.3.0] - 2026-08-01
