@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Changed
+
+- docs: 📝 Update repository links to pj-domina-rf-git-setup ([#2](https://github.com/robert-flo/pj-domina-rf-git-setup/pull/2)). <!-- changelog-pr:2 -->
+
+
 ## [0.3.0] - 2026-08-01
 
 ### Fixed

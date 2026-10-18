@@ -5,12 +5,12 @@ documentation, and test improvements are all welcome.
 
 ## Getting started
 
-1. Fork [the repository](https://github.com/robert-flo/git-setup)
+1. Fork [the repository](https://github.com/robert-flo/pj-domina-rf-git-setup)
    and clone your fork:
 
    ```bash
-   git clone https://github.com/<your-user>/git-setup.git
-   cd git-setup
+   git clone https://github.com/<your-user>/pj-domina-rf-git-setup.git
+   cd pj-domina-rf-git-setup
    ```
 
 2. Create a focused branch from `master`:
