@@ -39,8 +39,8 @@ commands for you.
 Clone the repository and start the interactive assistant:
 
 ```shell
-git clone https://github.com/robert-flo/git-setup.git
-cd git-setup
+git clone https://github.com/robert-flo/PJ-DOMINA-rf-git-setup.git
+cd PJ-DOMINA-rf-git-setup
 ./git-setup
 ```
 
