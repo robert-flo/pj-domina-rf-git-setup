@@ -90,7 +90,7 @@ require_aligned_quick_actions "$TEST_ROOT/long-make-status" 'make git-status'
 
 # Every visible adapter is exercised at its public direct and Make seams. The
 # mutating operations run in preview mode so the fixture remains reusable.
-for command in a c ac p l st s d lg af fuck bye clean df; do
+for command in a c ac p l st s d ds lg af fuck bye clean df; do
   (
     cd "$REPOSITORY"
     PATH="$TEST_BIN:$PATH" DRY_RUN=1 "./make/workflow/$command" > "$TEST_ROOT/direct-$command"
@@ -114,7 +114,7 @@ done
 # command fails before it can perform work or emit an argument diagnostic.
 OUTSIDE_REPOSITORY="$TEST_ROOT/outside-repository"
 mkdir -p "$OUTSIDE_REPOSITORY"
-for command in a c cm ac p l st s d lg af fuck bye clean df fc fm; do
+for command in a c cm ac p l st s d ds lg af fuck bye clean df fc fm; do
   outside_status=0
   (
     cd "$OUTSIDE_REPOSITORY"
@@ -139,7 +139,7 @@ done
 
 # The generated Git shell aliases preserve output parity with their direct
 # surface. The native `git clean` exception is represented by `git bye`.
-for command in a c cm ac p l st s d lg af fuck bye df fc fm; do
+for command in a c cm ac p l st s d ds lg af fuck bye df fc fm; do
   git -C "$REPOSITORY" config "alias.$command" "$(git config --file "$ROOT_DIR/runtime/templates/git/gitconfig_aliases" --get "alias.$command")"
   (
     cd "$REPOSITORY/nested"
@@ -164,5 +164,16 @@ for command in a c cm ac p l st s d lg af fuck bye df fc fm; do
   cmp "$TEST_ROOT/direct-git-$command-normalized" "$TEST_ROOT/git-$command-normalized" || \
     fail "git $command changed the direct workflow output"
 done
+
+# ds shows the short status line and the diff for the same working tree.
+(
+  cd "$REPOSITORY"
+  printf 'modified\n' > tracked.txt
+  ./make/workflow/ds > "$TEST_ROOT/direct-ds-dirty"
+  git checkout -q -- tracked.txt
+)
+sed -E 's/\x1B\[[0-9;]*m//g' "$TEST_ROOT/direct-ds-dirty" > "$TEST_ROOT/direct-ds-dirty-plain"
+grep -Fq ' M tracked.txt' "$TEST_ROOT/direct-ds-dirty-plain" || fail 'ds did not print the short status line'
+grep -Fq '+modified' "$TEST_ROOT/direct-ds-dirty-plain" || fail 'ds did not print the diff'
 
 printf 'PASS: managed workflow status preserves its public surfaces\n'

@@ -93,6 +93,16 @@ show_diff() {
   fi
   print_done; quick_actions 'stage and commit' ac
 }
+status_diff() {
+  print_header '📄 git-status-diff · short status + diff'
+  if [[ -z $(git status --porcelain) ]]; then
+    printf '%s  ✓  nothing to commit — working tree is clean%s\n' "$GREEN" "$NC"
+  else
+    git status -s | sed 's/^/  /'
+    printf '\n'
+  fi
+  show_diff
+}
 show_log() { print_header '📜 git-log · recent history'; if git rev-parse --git-dir >/dev/null 2>&1; then git --no-pager log --max-count=15 --pretty=format:"  %C(green)%h%C(reset)  %<(58,trunc)%s  %C(dim)%<(15)%ar%C(reset)"; else printf '%s  ⚠  not a git repository%s' "$YELLOW" "$NC"; fi; printf '\n'; }
 
 add_fuzzy() { print_header '💾 git-add-fuzzy · interactive staging'; if command -v fzf >/dev/null 2>&1; then local files; files=$(git ls-files -m -o --exclude-standard | fzf -m --header='Select files to stage (TAB to multi-select, ENTER to accept)'); if [[ -n $files ]]; then if dry_run; then printf '  ▶ [dry-run] selected file(s) would be staged\n'; else while IFS= read -r file; do [[ -n $file ]] && git add "$file"; done <<< "$files"; fi; printf '%s  ✓ staged selected file(s)%s\n' "$GREEN" "$NC"; else printf '%s  ⚠  no files selected%s\n' "$YELLOW" "$NC"; fi; else printf '%s  ✗ fzf is not installed%s\n' "$RED" "$NC"; fi; print_done; quick_actions 'commit staged changes' c 'check repository state' s; }
@@ -121,12 +131,12 @@ search_history() {
 operation=${1:-}; shift || true
 case $operation in
   s|st) ;;
-  a|c|cm|ac|p|l|d|lg|af|fuck|bye|clean|df|fc|fm) require_git_repository || exit 1 ;;
-  *) printf 'usage: %s {a|c|cm|ac|p|l|st|s|d|lg|af|fuck|bye|clean|df|fc|fm}\n' "${0##*/}" >&2; exit 64 ;;
+  a|c|cm|ac|p|l|d|ds|lg|af|fuck|bye|clean|df|fc|fm) require_git_repository || exit 1 ;;
+  *) printf 'usage: %s {a|c|cm|ac|p|l|st|s|d|ds|lg|af|fuck|bye|clean|df|fc|fm}\n' "${0##*/}" >&2; exit 64 ;;
 esac
 case $operation in
   s|st) status ;; a) add_all ;; c) commit_auto ;; cm) commit_message "$*" ;; ac) add_commit ;;
-  p) push_changes ;; l) pull_changes ;; d) show_diff ;; lg) show_log ;; af) add_fuzzy ;;
+  p) push_changes ;; l) pull_changes ;; d) show_diff ;; ds) status_diff ;; lg) show_log ;; af) add_fuzzy ;;
   fuck) amend "$*" ;; clean|bye) clean_worktrees ;; df) diff_fuzzy ;;
   fc|fm) search_history "$operation" "${*:-${WORKFLOW_ARGUMENT:-${CODE:-${MSG:-}}}}" ;;
 esac
