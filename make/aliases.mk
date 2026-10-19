@@ -4,9 +4,9 @@
 # 🎯 Purpose: Short redirects for the Git and Docker targets
 
 .PHONY: help-aliases \
-        git-a git-c git-ac git-p git-st git-s git-d git-l git-lg \
+        git-a git-c git-ac git-p git-st git-s git-d git-ds git-l git-lg \
         git-af git-fuck git-bye git-df git-fc git-fm \
-        a c ac p l st s d lg af fuck bye clean df fc fm cm db dr dc
+        a c ac p l st s d ds lg af fuck bye clean df fc fm cm db dr dc
 
 help-aliases: ## Show Git compatibility aliases
 	@printf "\n"
@@ -24,6 +24,7 @@ help-aliases: ## Show Git compatibility aliases
 	@printf "%-20s %-25s %s\n" "l / git-l" "git-pull" "Pull the current branch"
 	@printf "%-20s %-25s %s\n" "st, s / git-st, git-s" "git-status" "Show repository state"
 	@printf "%-20s %-25s %s\n" "d / git-d" "git-diff" "Show uncommitted changes"
+	@printf "%-20s %-25s %s\n" "ds / git-ds" "git-status-diff" "Short status and diff"
 	@printf "%-20s %-25s %s\n" "lg / git-lg" "git-log" "Show recent history"
 	@printf "%-20s %-25s %s\n" "af / git-af" "git-add-fuzzy" "Interactively stage changes"
 	@printf "%-20s %-25s %s\n" "fuck / git-fuck" "git-amend" "Amend the last commit"
@@ -54,6 +55,8 @@ git-l: ; $(call run_workflow,l)
 git-st: ; $(call run_workflow,st)
 git-s: ; $(call run_workflow,s)
 git-d: ; $(call run_workflow,d)
+ds: ; $(call run_workflow,ds)
+git-ds: ; $(call run_workflow,ds)
 git-lg: ; $(call run_workflow,lg)
 git-af: ; $(call run_workflow,af)
 git-fuck: ; $(call run_workflow,fuck,$(MSG))

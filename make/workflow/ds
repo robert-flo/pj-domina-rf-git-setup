@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# ds — short status + diff. Usage: ds | git ds | make ds.
+exec "$(dirname "$0")/.git-workflow" ds "$@"

@@ -22,6 +22,7 @@
 #    st / git-st    git-status               Show repository state
 #    s  / git-s     git-status               Show repository state
 #    d  / git-d     git-diff                 Show uncommitted diffs
+#    ds / git-ds    git-status-diff          Short status + diff
 #    lg / git-lg    git-log                  Show commit log history
 #    af / git-af    git-add-fuzzy            Interactively stage (fzf)
 #    fuck/git-fuck  git-amend                Amend last commit (MSG="...")

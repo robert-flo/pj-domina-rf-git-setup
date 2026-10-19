@@ -170,7 +170,7 @@ git s
 make s
 ```
 
-The managed commands are `a`, `c`, `cm`, `ac`, `p`, `l`, `st`, `s`, `d`, `lg`,
+The managed commands are `a`, `c`, `cm`, `ac`, `p`, `l`, `st`, `s`, `d`, `ds`, `lg`,
 `af`, `fuck`, `bye`, `clean`, `df`, `fc`, and `fm`. The Make companions live in
 `make/workflow/` and travel with the repository fragment, so `make s` remains usable in a repository that
 has not run `git-setup config`.
