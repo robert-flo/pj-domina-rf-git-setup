@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Added
+
+- feat: ✨ Add ds workflow command (short status + diff) ([#4](https://github.com/robert-flo/pj-domina-rf-git-setup/pull/4)). <!-- changelog-pr:4 -->
+
+
 ### Changed
 
 - docs: 📝 Update repository links to pj-domina-rf-git-setup ([#2](https://github.com/robert-flo/pj-domina-rf-git-setup/pull/2)). <!-- changelog-pr:2 -->
