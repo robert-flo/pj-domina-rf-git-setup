@@ -86,6 +86,49 @@ generate_git_config_files() {
   install_managed_workflow_commands
 }
 
+is_managed_workflow_file() {
+  local file_path="$1"
+  local workflow_file="${2:-${file_path##*/}}"
+
+  [[ ! -L $file_path && -f $file_path ]] || return 1
+
+  if [[ $workflow_file == ".git-workflow" ]]; then
+    grep -Fq '# Managed workflow runtime.' "$file_path"
+  else
+    # shellcheck disable=SC2016 # Match the literal adapter exec expression.
+    grep -Fq 'exec "$(dirname "$0")/.git-workflow"' "$file_path"
+  fi
+}
+
+remove_legacy_workflow_leftovers() {
+  local mode="${1:-config}"
+  local -a workflow_files=(.git-workflow a c cm ac p l st s d lg af fuck bye clean df fc fm)
+  local workflow_file=""
+  local legacy_path=""
+  local display_dir=""
+
+  REMOVED_LEGACY_WORKFLOW_COMMANDS=0
+  [[ -n ${LEGACY_WORKFLOW_COMMAND_DIR:-} && $WORKFLOW_COMMAND_DIR != "$LEGACY_WORKFLOW_COMMAND_DIR" ]] || return 0
+  [[ ! $WORKFLOW_COMMAND_DIR -ef $LEGACY_WORKFLOW_COMMAND_DIR ]] || return 0
+
+  display_dir="${LEGACY_WORKFLOW_COMMAND_DIR/#$HOME/\~}"
+  for workflow_file in "${workflow_files[@]}"; do
+    legacy_path="$LEGACY_WORKFLOW_COMMAND_DIR/$workflow_file"
+    [[ -e $legacy_path || -L $legacy_path ]] || continue
+    if is_managed_workflow_file "$legacy_path" "$workflow_file"; then
+      rm -f "$legacy_path"
+      if [[ $mode == "clean" ]]; then
+        print_success "Removed ${GRAY}${display_dir}/$workflow_file${NC}"
+      else
+        print_info "Removed legacy: ${GRAY}${display_dir}/$workflow_file${NC}"
+      fi
+      REMOVED_LEGACY_WORKFLOW_COMMANDS=$((REMOVED_LEGACY_WORKFLOW_COMMANDS + 1))
+    else
+      print_warn "kept unrelated ${display_dir}/$workflow_file"
+    fi
+  done
+}
+
 install_managed_workflow_commands() {
   # shellcheck disable=SC2153 # Value is provided by helper/set_variable.sh.
   local workflow_source_dir="$WORKFLOW_SOURCE_DIR"
@@ -105,11 +148,20 @@ install_managed_workflow_commands() {
       print_error "Missing portable workflow companion: $workflow_file"
       return 1
     }
-    if [[ -e $WORKFLOW_COMMAND_DIR/$workflow_file ]]; then action="Updated"; else action="Created"; fi
+    if [[ -e $WORKFLOW_COMMAND_DIR/$workflow_file || -L $WORKFLOW_COMMAND_DIR/$workflow_file ]]; then
+      if ! is_managed_workflow_file "$WORKFLOW_COMMAND_DIR/$workflow_file" "$workflow_file"; then
+        print_warn "kept unrelated ${WORKFLOW_COMMAND_DIR/#$HOME/\~}/$workflow_file"
+        continue
+      fi
+      action="Updated"
+    else
+      action="Created"
+    fi
     cp "$workflow_source_dir/$workflow_file" "$WORKFLOW_COMMAND_DIR/$workflow_file"
     chmod 0755 "$WORKFLOW_COMMAND_DIR/$workflow_file"
     print_success "$action: ${WHITE}$WORKFLOW_COMMAND_DIR/$workflow_file${NC}"
   done
+  remove_legacy_workflow_leftovers config
   print_info "Commands: ${CYAN}s${NC}, ${CYAN}git s${NC}, and ${CYAN}make s${NC} share one workflow surface."
   echo ""
 }

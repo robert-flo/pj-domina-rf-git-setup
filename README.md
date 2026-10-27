@@ -160,7 +160,9 @@ nvim ~/.config/git/gitconfig.local
 
 ## Managed Git Workflow Commands
 
-`git-setup config` also installs a managed workflow set in `~/.local/bin`.
+`git-setup config` also installs a managed workflow set in `~/bin` (override
+with `GIT_SETUP_BIN_DIR`; `WORKFLOW_COMMAND_DIR` remains supported as a
+backward-compatible alias, and `GIT_SETUP_BIN_DIR` takes precedence).
 Every operation has the same three workflow surfaces: a direct command, a Git
 alias, and a portable Make alias. For example, these are equivalent:
 
@@ -203,11 +205,15 @@ arguments or running an operation. Outside a repository, `s` and `st` retain
 their repository overview with the `not a git repository` notice; every other
 managed command shows the same notice and exits without performing work.
 
-Running `git-setup config` refreshes these owned command files. Running
-`git-setup clean` removes only them and its private runtime after confirmation;
-it never removes `~/.local/bin` or unrelated commands. A personal or
-repository-local Git alias may deliberately override a managed alias; `git-setup
-verify` reports that condition.
+Running `git-setup config` refreshes these owned command files and removes any
+legacy managed leftovers in `~/.local/bin` so they cannot shadow `~/bin`.
+Running `git-setup clean` removes only the managed workflow set and its private
+runtime from `~/bin` (or `GIT_SETUP_BIN_DIR`) and any legacy managed leftovers
+in `~/.local/bin` after confirmation; it never removes `~/bin`, `~/.local/bin`,
+symlinks, or unrelated commands. A personal or repository-local Git alias may
+deliberately override a managed alias; `git-setup verify` reports that condition
+and prints a `PATH` hint if `~/bin` is not in `PATH` or appears after
+`~/.local/bin`.
 
 ---
 

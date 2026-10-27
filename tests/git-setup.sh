@@ -197,7 +197,7 @@ for file in "${generated_files[@]}"; do
   require_file "$DEFAULT_HOME/.config/git/$file"
 done
 for command in "${workflow_commands[@]}"; do
-  [[ -x $DEFAULT_HOME/.local/bin/$command ]] || fail "managed workflow command is not executable: $command"
+  [[ -x $DEFAULT_HOME/bin/$command ]] || fail "managed workflow command is not executable: $command"
 done
 
 default_config="$DEFAULT_HOME/.config/git/config"
@@ -225,7 +225,7 @@ git -C "$WORKFLOW_REPOSITORY" commit -qm 'workflow fixture'
 (
   cd "$WORKFLOW_REPOSITORY/nested"
   HOME="$DEFAULT_HOME" XDG_CONFIG_HOME="$DEFAULT_HOME/.config" \
-    PATH="$DEFAULT_HOME/.local/bin:$TEST_BIN:$PATH" git s
+    PATH="$DEFAULT_HOME/bin:$TEST_BIN:$PATH" git s
 ) > "$TEST_ROOT/installed-git-s-output"
 sed -E 's/\x1B\[[0-9;]*m//g' "$TEST_ROOT/installed-git-s-output" > "$TEST_ROOT/installed-git-s-plain-output"
 require_output "$TEST_ROOT/installed-git-s-plain-output" "path:      $WORKFLOW_REPOSITORY/nested"
@@ -239,7 +239,7 @@ outside_cm_status=0
 (
   cd "$TEST_ROOT"
   HOME="$DEFAULT_HOME" XDG_CONFIG_HOME="$DEFAULT_HOME/.config" \
-    PATH="$DEFAULT_HOME/.local/bin:$TEST_BIN:$PATH" cm
+    PATH="$DEFAULT_HOME/bin:$TEST_BIN:$PATH" cm
 ) > "$TEST_ROOT/installed-cm-outside-output" 2>&1 || outside_cm_status=$?
 ((outside_cm_status != 0)) || fail 'installed cm succeeded outside a Git repository'
 require_output "$TEST_ROOT/installed-cm-outside-output" 'not a git repository'
@@ -247,12 +247,88 @@ if grep -Fq 'please specify a commit message' "$TEST_ROOT/installed-cm-outside-o
   fail 'installed cm validated its message before its Git repository context'
 fi
 
-# A subsequent run refreshes managed files but preserves the local override.
+# A subsequent run refreshes managed files, preserves the local override, and
+# removes legacy managed leftovers from ~/.local/bin while preserving unrelated
+# ~/.local/bin user tools (even with colliding names like `s`) and symlinks.
 printf '[user]\n\tname = Local Override\n' > "$DEFAULT_HOME/.config/git/gitconfig.local"
+mkdir -p "$DEFAULT_HOME/.local/bin"
+cp "$ROOT_DIR/make/workflow/s" "$DEFAULT_HOME/.local/bin/s"
+cp "$ROOT_DIR/make/workflow/.git-workflow" "$DEFAULT_HOME/.local/bin/.git-workflow"
+ln -s "$DEFAULT_HOME/bin/p" "$DEFAULT_HOME/.local/bin/p"
+printf '%s\n' '#!/usr/bin/env bash' 'exit 0' > "$DEFAULT_HOME/.local/bin/unrelated-tool"
+chmod +x "$DEFAULT_HOME/.local/bin/s" "$DEFAULT_HOME/.local/bin/.git-workflow" "$DEFAULT_HOME/.local/bin/unrelated-tool"
 run_setup "$DEFAULT_HOME" config > "$TEST_ROOT/updated-config-output"
 require_output "$TEST_ROOT/updated-config-output" 'Updated:'
+# shellcheck disable=SC2088 # The expected user-facing path intentionally contains a literal tilde.
+require_output "$TEST_ROOT/updated-config-output" 'Removed legacy: ~/.local/bin/s'
+# shellcheck disable=SC2088 # The expected user-facing path intentionally contains a literal tilde.
+require_output "$TEST_ROOT/updated-config-output" 'Removed legacy: ~/.local/bin/.git-workflow'
+# shellcheck disable=SC2088 # The expected user-facing path intentionally contains a literal tilde.
+require_output "$TEST_ROOT/updated-config-output" 'kept unrelated ~/.local/bin/p'
 require_file "$DEFAULT_HOME/.config/git/gitconfig.local"
 grep -Fq 'Local Override' "$DEFAULT_HOME/.config/git/gitconfig.local" || fail 'gitconfig.local was overwritten'
+[[ ! -e $DEFAULT_HOME/.local/bin/s ]] || fail 'config did not remove legacy ~/.local/bin/s leftover'
+[[ ! -e $DEFAULT_HOME/.local/bin/.git-workflow ]] || fail 'config did not remove legacy ~/.local/bin/.git-workflow leftover'
+[[ -L $DEFAULT_HOME/.local/bin/p ]] || fail 'config removed a symlink in ~/.local/bin'
+[[ -x $DEFAULT_HOME/bin/p ]] || fail 'config followed and removed a symlink target in ~/bin'
+[[ -x $DEFAULT_HOME/.local/bin/unrelated-tool ]] || fail 'config removed an unrelated ~/.local/bin tool'
+
+printf '#!/bin/sh\necho mine\n' > "$DEFAULT_HOME/.local/bin/s"
+chmod +x "$DEFAULT_HOME/.local/bin/s"
+run_setup "$DEFAULT_HOME" config > "$TEST_ROOT/unrelated-s-config-output"
+# shellcheck disable=SC2088 # The expected user-facing path intentionally contains a literal tilde.
+require_output "$TEST_ROOT/unrelated-s-config-output" 'kept unrelated ~/.local/bin/s'
+[[ -x $DEFAULT_HOME/.local/bin/s ]] || fail 'config removed an unrelated ~/.local/bin/s user tool'
+grep -Fq 'echo mine' "$DEFAULT_HOME/.local/bin/s" || fail 'config modified an unrelated ~/.local/bin/s user tool'
+
+# config never overwrites unrelated ~/bin files nor writes through ~/bin symlinks.
+OWNED_BIN_HOME="$TEST_ROOT/owned-bin-home"
+mkdir -p "$OWNED_BIN_HOME/bin" "$OWNED_BIN_HOME/dotfiles"
+printf '#!/bin/sh\necho MINE\n' > "$OWNED_BIN_HOME/bin/s"
+printf '#!/bin/sh\necho DOTFILE\n' > "$OWNED_BIN_HOME/dotfiles/d"
+ln -s "$OWNED_BIN_HOME/dotfiles/d" "$OWNED_BIN_HOME/bin/d"
+run_setup "$OWNED_BIN_HOME" config > "$TEST_ROOT/owned-bin-config-output"
+# shellcheck disable=SC2088 # The expected user-facing path intentionally contains a literal tilde.
+require_output "$TEST_ROOT/owned-bin-config-output" 'kept unrelated ~/bin/s'
+# shellcheck disable=SC2088 # The expected user-facing path intentionally contains a literal tilde.
+require_output "$TEST_ROOT/owned-bin-config-output" 'kept unrelated ~/bin/d'
+grep -Fq 'echo MINE' "$OWNED_BIN_HOME/bin/s" || fail 'config overwrote an unrelated ~/bin/s'
+[[ -L $OWNED_BIN_HOME/bin/d ]] || fail 'config replaced a ~/bin symlink'
+grep -Fq 'echo DOTFILE' "$OWNED_BIN_HOME/dotfiles/d" || fail 'config wrote through a ~/bin symlink'
+[[ -x $OWNED_BIN_HOME/bin/p ]] || fail 'config skipped managed commands next to unrelated ones'
+
+# When ~/bin and ~/.local/bin are the same directory, config keeps what it installed.
+SAME_DIR_HOME="$TEST_ROOT/same-dir-home"
+mkdir -p "$SAME_DIR_HOME/.local/bin"
+ln -s "$SAME_DIR_HOME/.local/bin" "$SAME_DIR_HOME/bin"
+run_setup "$SAME_DIR_HOME" config > "$TEST_ROOT/same-dir-config-output"
+for command in "${workflow_commands[@]}"; do
+  [[ -x $SAME_DIR_HOME/bin/$command ]] || fail "config removed $command when ~/bin is ~/.local/bin"
+done
+if grep -Fq 'Removed legacy' "$TEST_ROOT/same-dir-config-output"; then
+  fail 'config treated ~/bin as legacy when it is the same directory as ~/.local/bin'
+fi
+
+# GIT_SETUP_BIN_DIR overrides the workflow command install directory, normalizes
+# trailing slashes, and takes precedence over WORKFLOW_COMMAND_DIR; meanwhile
+# WORKFLOW_COMMAND_DIR still works as a backward-compatible alias when set alone.
+OVERRIDE_HOME="$TEST_ROOT/override-home"
+mkdir -p "$OVERRIDE_HOME"
+GIT_SETUP_BIN_DIR="$OVERRIDE_HOME/custom-bin///" \
+  WORKFLOW_COMMAND_DIR="$OVERRIDE_HOME/ignored-bin" \
+  run_setup "$OVERRIDE_HOME" config > "$TEST_ROOT/override-config-output"
+for command in "${workflow_commands[@]}"; do
+  [[ -x $OVERRIDE_HOME/custom-bin/$command ]] || fail "GIT_SETUP_BIN_DIR did not install $command"
+done
+[[ ! -d $OVERRIDE_HOME/ignored-bin ]] || fail 'WORKFLOW_COMMAND_DIR overrode GIT_SETUP_BIN_DIR'
+require_output "$TEST_ROOT/override-config-output" "Created: $OVERRIDE_HOME/custom-bin/s"
+
+ALIAS_DIR_HOME="$TEST_ROOT/alias-dir-home"
+mkdir -p "$ALIAS_DIR_HOME"
+WORKFLOW_COMMAND_DIR="$ALIAS_DIR_HOME/compat-bin/" \
+  run_setup "$ALIAS_DIR_HOME" config > "$TEST_ROOT/compat-config-output"
+[[ -x $ALIAS_DIR_HOME/compat-bin/s ]] || fail 'WORKFLOW_COMMAND_DIR compatibility alias did not install s'
+require_output "$TEST_ROOT/compat-config-output" "Created: $ALIAS_DIR_HOME/compat-bin/s"
 
 # NAME and EMAIL provide a non-interactive identity for automation.
 NAME='Ada Lovelace' EMAIL='ada@example.com' run_setup "$CUSTOM_HOME" config > "$TEST_ROOT/custom-config-output"
@@ -261,7 +337,8 @@ custom_config="$CUSTOM_HOME/.config/git/config"
 [[ $(git config --file "$custom_config" --get user.email) == 'ada@example.com' ]] || fail 'EMAIL was not generated'
 
 # Verification reports its own section for all generated files without relying
-# on the workstation's credentials or keyring.
+# on the workstation's credentials or keyring, and hints when ~/bin is missing
+# from PATH or ordered after ~/.local/bin.
 run_setup "$CUSTOM_HOME" verify > "$TEST_ROOT/verify-output" || true
 require_output "$TEST_ROOT/verify-output" 'Git + GitHub + GPG Configuration for Arch Linux'
 require_output "$TEST_ROOT/verify-output" 'Generated Git Configuration Files'
@@ -269,11 +346,31 @@ for file in "${generated_files[@]}"; do
   require_output "$TEST_ROOT/verify-output" "Found: ~/.config/git/$file"
 done
 for command in "${workflow_commands[@]}"; do
-  require_output "$TEST_ROOT/verify-output" "Found: ~/.local/bin/$command"
+  require_output "$TEST_ROOT/verify-output" "Found: ~/bin/$command"
 done
+# shellcheck disable=SC2088 # The expected user-facing path intentionally contains a literal tilde.
+require_output "$TEST_ROOT/verify-output" '~/bin is not in PATH'
+require_output "$TEST_ROOT/verify-output" 'Hint:'
 for command in a c cm ac p l st s d lg af fuck bye df fc fm; do
   require_output "$TEST_ROOT/verify-output" "Alias: git $command"
 done
+
+(
+  cd "$TEST_ROOT"
+  HOME="$CUSTOM_HOME" XDG_CONFIG_HOME="$CUSTOM_HOME/.config" TERM=dumb \
+    PATH="$CUSTOM_HOME/.local/bin:$CUSTOM_HOME/bin:$TEST_BIN:$PATH" "$GIT_SETUP" verify
+) > "$TEST_ROOT/verify-path-order-output" 2>&1 || true
+# shellcheck disable=SC2088 # The expected user-facing path intentionally contains a literal tilde.
+require_output "$TEST_ROOT/verify-path-order-output" '~/bin is after ~/.local/bin in PATH'
+require_output "$TEST_ROOT/verify-path-order-output" 'Hint:'
+
+(
+  cd "$TEST_ROOT"
+  HOME="$CUSTOM_HOME" XDG_CONFIG_HOME="$CUSTOM_HOME/.config" TERM=dumb \
+    PATH="$CUSTOM_HOME/bin:$CUSTOM_HOME/.local/bin:$TEST_BIN:$PATH" "$GIT_SETUP" verify
+) > "$TEST_ROOT/verify-path-ok-output" 2>&1 || true
+# shellcheck disable=SC2088 # The expected user-facing path intentionally contains a literal tilde.
+require_output "$TEST_ROOT/verify-path-ok-output" 'PATH includes ~/bin'
 
 # An alias defined by the repository must still be reported as an override of
 # the globally managed workflow alias.
@@ -310,16 +407,57 @@ require_output "$TEST_ROOT/clean-output" 'gitconfig.local will be preserved'
 require_output "$TEST_ROOT/clean-output" 'Cancelled'
 require_file "$CUSTOM_HOME/.config/git/config"
 
-# Confirmed cleanup removes the owned workflow set but never the local-bin
-# directory or unrelated commands.
-mkdir -p "$CUSTOM_HOME/.local/bin"
+# Confirmed cleanup removes the owned workflow set from ~/bin and any legacy
+# managed leftovers from ~/.local/bin, while never deleting ~/bin, ~/.local/bin,
+# symlinks, or unrelated commands in either directory.
+mkdir -p "$CUSTOM_HOME/bin" "$CUSTOM_HOME/.local/bin"
+printf '%s\n' '#!/usr/bin/env bash' 'exit 0' > "$CUSTOM_HOME/bin/unrelated-bin-command"
 printf '%s\n' '#!/usr/bin/env bash' 'exit 0' > "$CUSTOM_HOME/.local/bin/unrelated-command"
-chmod +x "$CUSTOM_HOME/.local/bin/unrelated-command"
+cp "$ROOT_DIR/make/workflow/s" "$CUSTOM_HOME/.local/bin/s"
+cp "$ROOT_DIR/make/workflow/clean" "$CUSTOM_HOME/.local/bin/clean"
+cp "$ROOT_DIR/make/workflow/.git-workflow" "$CUSTOM_HOME/.local/bin/.git-workflow"
+ln -s "$CUSTOM_HOME/bin/unrelated-bin-command" "$CUSTOM_HOME/.local/bin/p"
+chmod +x \
+  "$CUSTOM_HOME/bin/unrelated-bin-command" \
+  "$CUSTOM_HOME/.local/bin/unrelated-command" \
+  "$CUSTOM_HOME/.local/bin/s" \
+  "$CUSTOM_HOME/.local/bin/clean" \
+  "$CUSTOM_HOME/.local/bin/.git-workflow"
 printf 'yes\n' | run_setup "$CUSTOM_HOME" clean > "$TEST_ROOT/confirmed-clean-output"
-[[ ! -e $CUSTOM_HOME/.local/bin/s ]] || fail 'clean preserved a managed workflow command'
-[[ ! -e $CUSTOM_HOME/.local/bin/.git-workflow ]] || fail 'clean preserved the managed workflow runtime'
-[[ -x $CUSTOM_HOME/.local/bin/unrelated-command ]] || fail 'clean removed an unrelated local-bin command'
+[[ ! -e $CUSTOM_HOME/bin/s ]] || fail 'clean preserved a managed workflow command in ~/bin'
+[[ ! -e $CUSTOM_HOME/bin/.git-workflow ]] || fail 'clean preserved the managed workflow runtime in ~/bin'
+[[ -x $CUSTOM_HOME/bin/unrelated-bin-command ]] || fail 'clean removed an unrelated ~/bin command'
+[[ ! -e $CUSTOM_HOME/.local/bin/s ]] || fail 'clean preserved a legacy managed workflow command in ~/.local/bin'
+[[ ! -e $CUSTOM_HOME/.local/bin/clean ]] || fail 'clean preserved a legacy managed clean command in ~/.local/bin'
+[[ ! -e $CUSTOM_HOME/.local/bin/.git-workflow ]] || fail 'clean preserved the legacy managed workflow runtime in ~/.local/bin'
+[[ -L $CUSTOM_HOME/.local/bin/p ]] || fail 'clean removed a symlink in ~/.local/bin'
+[[ -x $CUSTOM_HOME/.local/bin/unrelated-command ]] || fail 'clean removed an unrelated ~/.local/bin command'
+[[ -d $CUSTOM_HOME/.local/bin ]] || fail 'clean removed the ~/.local/bin directory'
 require_output "$TEST_ROOT/confirmed-clean-output" 'Cleaning Managed Workflow Commands'
+# shellcheck disable=SC2088 # The expected user-facing path intentionally contains a literal tilde.
+require_output "$TEST_ROOT/confirmed-clean-output" 'Removed ~/bin/s'
+# shellcheck disable=SC2088 # The expected user-facing path intentionally contains a literal tilde.
+require_output "$TEST_ROOT/confirmed-clean-output" 'Removed ~/.local/bin/s'
+# shellcheck disable=SC2088 # The expected user-facing path intentionally contains a literal tilde.
+require_output "$TEST_ROOT/confirmed-clean-output" 'Removed ~/.local/bin/.git-workflow'
+# shellcheck disable=SC2088 # The expected user-facing path intentionally contains a literal tilde.
+require_output "$TEST_ROOT/confirmed-clean-output" 'kept unrelated ~/.local/bin/p'
+
+printf '#!/bin/sh\necho mine\n' > "$CUSTOM_HOME/.local/bin/s"
+chmod +x "$CUSTOM_HOME/.local/bin/s"
+printf 'yes\n' | run_setup "$CUSTOM_HOME" clean > "$TEST_ROOT/unrelated-s-clean-output"
+# shellcheck disable=SC2088 # The expected user-facing path intentionally contains a literal tilde.
+require_output "$TEST_ROOT/unrelated-s-clean-output" 'kept unrelated ~/.local/bin/s'
+[[ -x $CUSTOM_HOME/.local/bin/s ]] || fail 'clean removed an unrelated ~/.local/bin/s user tool'
+grep -Fq 'echo mine' "$CUSTOM_HOME/.local/bin/s" || fail 'clean modified an unrelated ~/.local/bin/s user tool'
+
+# clean keeps unrelated ~/bin files that share a workflow command name.
+printf '#!/bin/sh\necho MINE\n' > "$CUSTOM_HOME/bin/s"
+chmod +x "$CUSTOM_HOME/bin/s"
+printf 'yes\n' | run_setup "$CUSTOM_HOME" clean > "$TEST_ROOT/unrelated-bin-s-clean-output"
+# shellcheck disable=SC2088 # The expected user-facing path intentionally contains a literal tilde.
+require_output "$TEST_ROOT/unrelated-bin-s-clean-output" 'kept unrelated ~/bin/s'
+grep -Fq 'echo MINE' "$CUSTOM_HOME/bin/s" || fail 'clean removed an unrelated ~/bin/s user tool'
 
 # The integration test requires the identity generated by setup. Without it,
 # it must not create a repository or prompt for a GitHub push.

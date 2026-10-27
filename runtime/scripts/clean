@@ -9,6 +9,8 @@ if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
   PROJECT_DIR="$GIT_SETUP_RUNTIME_DIR"
   # shellcheck disable=SC1091
   source "$PROJECT_DIR/lib/presentation.sh"
+  # shellcheck disable=SC1091 # Shared workflow-command helpers used by clean.
+  source "$PROJECT_DIR/lib/configuration.sh"
   # shellcheck disable=SC1091 # Focused command interface helper.
   source "$PROJECT_DIR/lib/command_interface.sh"
 fi
@@ -47,10 +49,15 @@ do_clean() {
   echo -e "      • ~/.config/git/shell_aliases"
   echo -e "      ${GRAY}(gitconfig.local will be preserved)${NC}"
   echo ""
+  local display_bin_dir="${WORKFLOW_COMMAND_DIR/#$HOME/\~}"
   echo -e "    ${GRAY}Managed Workflow Commands:${NC}"
-  echo -e "      • ~/.local/bin/{a,c,cm,ac,p,l,st,s,d,lg,af,fuck,bye,clean,df,fc,fm}"
-  echo -e "      • ~/.local/bin/.git-workflow"
-  echo -e "      ${GRAY}(unrelated ~/.local/bin files will be preserved)${NC}"
+  echo -e "      • ${display_bin_dir}/{a,c,cm,ac,p,l,st,s,d,lg,af,fuck,bye,clean,df,fc,fm}"
+  echo -e "      • ${display_bin_dir}/.git-workflow"
+  if [[ -n ${LEGACY_WORKFLOW_COMMAND_DIR:-} && $WORKFLOW_COMMAND_DIR != "$LEGACY_WORKFLOW_COMMAND_DIR" && ! $WORKFLOW_COMMAND_DIR -ef $LEGACY_WORKFLOW_COMMAND_DIR ]]; then
+    echo -e "      • ~/.local/bin/{a,c,cm,ac,p,l,st,s,d,lg,af,fuck,bye,clean,df,fc,fm} ${GRAY}(managed leftovers, if present)${NC}"
+    echo -e "      • ~/.local/bin/.git-workflow ${GRAY}(managed leftover, if present)${NC}"
+  fi
+  echo -e "      ${GRAY}(unrelated ${display_bin_dir} and ~/.local/bin files will be preserved)${NC}"
   echo ""
   echo -e "    ${GRAY}GitHub CLI:${NC}"
   echo -e "      • gh authentication token"
@@ -131,12 +138,17 @@ do_clean() {
   for workflow_command in \
     .git-workflow \
     a c cm ac p l st s d lg af fuck bye clean df fc fm; do
-    if [[ -f $WORKFLOW_COMMAND_DIR/$workflow_command ]]; then
+    [[ -e $WORKFLOW_COMMAND_DIR/$workflow_command || -L $WORKFLOW_COMMAND_DIR/$workflow_command ]] || continue
+    if is_managed_workflow_file "$WORKFLOW_COMMAND_DIR/$workflow_command" "$workflow_command"; then
       rm -f "$WORKFLOW_COMMAND_DIR/$workflow_command"
       print_success "Removed ${GRAY}${WORKFLOW_COMMAND_DIR/#$HOME/\~}/$workflow_command${NC}"
       ((removed_workflow_commands += 1))
+    else
+      print_warn "kept unrelated ${WORKFLOW_COMMAND_DIR/#$HOME/\~}/$workflow_command"
     fi
   done
+  remove_legacy_workflow_leftovers clean
+  removed_workflow_commands=$((removed_workflow_commands + REMOVED_LEGACY_WORKFLOW_COMMANDS))
   if ((removed_workflow_commands == 0)); then
     print_info "No managed workflow commands found"
   fi

@@ -127,15 +127,55 @@ verify_managed_workflow_commands() {
   local workflow_command=""
   local expected_alias=""
   local effective_alias=""
+  local display_bin_dir="${WORKFLOW_COMMAND_DIR/#$HOME/\~}"
+  local -a path_entries=()
+  local path_entry=""
+  local normalized_entry=""
+  local index=0
+  local bin_dir_index=-1
+  local legacy_dir_index=-1
 
   print_section "${ICON_GIT} Managed Workflow Commands"
   for workflow_command in .git-workflow "${workflow_commands[@]}"; do
     if [[ -x $WORKFLOW_COMMAND_DIR/$workflow_command ]]; then
-      print_success "Found: ${GRAY}${WORKFLOW_COMMAND_DIR/#$HOME/\~}/$workflow_command${NC}"
+      print_success "Found: ${GRAY}${display_bin_dir}/$workflow_command${NC}"
     else
-      print_error "Missing: ${GRAY}${WORKFLOW_COMMAND_DIR/#$HOME/\~}/$workflow_command${NC}"
+      print_error "Missing: ${GRAY}${display_bin_dir}/$workflow_command${NC}"
     fi
   done
+
+  IFS=':' read -r -a path_entries <<< "${PATH:-}"
+  for index in "${!path_entries[@]}"; do
+    path_entry="${path_entries[$index]}"
+    [[ -z $path_entry ]] && continue
+    # shellcheck disable=SC2088 # Match a literal leading tilde in PATH.
+    if [[ $path_entry == "~" ]]; then
+      normalized_entry="$HOME"
+    elif [[ $path_entry == "~/"* ]]; then
+      normalized_entry="$HOME/${path_entry#\~/}"
+    else
+      normalized_entry="$path_entry"
+    fi
+    while [[ $normalized_entry == ?*/ ]]; do
+      normalized_entry="${normalized_entry%/}"
+    done
+    if [[ $normalized_entry == "$WORKFLOW_COMMAND_DIR" && $bin_dir_index -lt 0 ]]; then
+      bin_dir_index=$index
+    fi
+    if [[ -n ${LEGACY_WORKFLOW_COMMAND_DIR:-} && $normalized_entry == "$LEGACY_WORKFLOW_COMMAND_DIR" && $legacy_dir_index -lt 0 ]]; then
+      legacy_dir_index=$index
+    fi
+  done
+
+  if ((bin_dir_index < 0)); then
+    print_warn "${display_bin_dir} is not in PATH"
+    print_info "Hint: add ${GRAY}export PATH=\"${display_bin_dir}:\$PATH\"${NC} to your shell config so ${GRAY}${display_bin_dir}${NC} precedes ${GRAY}~/.local/bin${NC}"
+  elif [[ -n ${LEGACY_WORKFLOW_COMMAND_DIR:-} && $WORKFLOW_COMMAND_DIR != "$LEGACY_WORKFLOW_COMMAND_DIR" ]] && ((legacy_dir_index >= 0 && legacy_dir_index < bin_dir_index)); then
+    print_warn "${display_bin_dir} is after ~/.local/bin in PATH"
+    print_info "Hint: place ${GRAY}${display_bin_dir}${NC} before ${GRAY}~/.local/bin${NC} in PATH (e.g. ${GRAY}export PATH=\"${display_bin_dir}:\$PATH\"${NC})"
+  else
+    print_success "PATH includes ${GRAY}${display_bin_dir}${NC}"
+  fi
 
   for workflow_command in "${workflow_aliases[@]}"; do
     expected_alias=$(git config --file "$GIT_CONFIG_DIR/gitconfig_aliases" --get "alias.$workflow_command" 2> /dev/null || true)

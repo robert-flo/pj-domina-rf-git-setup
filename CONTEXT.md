@@ -43,7 +43,7 @@ _Avoid_: Development checkout, live master branch
 
 **Managed workflow command**:
 The executable copy of a portable workflow companion installed in the user's
-`~/.local/bin` directory.
+`~/bin` directory (or the directory configured by `GIT_SETUP_BIN_DIR`).
 _Avoid_: Make alias, shell alias, Git subcommand
 
 **Portable workflow companion**:
@@ -53,7 +53,7 @@ _Avoid_: Configuration template, private helper
 
 **Workflow surface**:
 One of the equivalent ways to invoke a managed workflow command: directly from
-`~/.local/bin`, through `git <alias>`, or through `make <alias>`.
+`~/bin`, through `git <alias>`, or through `make <alias>`.
 _Avoid_: Different command, alternative implementation
 
 **Unified argument contract**:
@@ -69,7 +69,7 @@ _Avoid_: Make-only dry run, simulation flag
 **Managed workflow set**:
 The 17 Git workflow commands installed and removed as one owned set by
 `git-setup`; Docker aliases are not members of this set.
-_Avoid_: `~/.local/bin` directory, all Make aliases
+_Avoid_: `~/bin` directory, `~/.local/bin` directory, all Make aliases
 
 **Output parity**:
 The requirement that a workflow companion preserves its corresponding
