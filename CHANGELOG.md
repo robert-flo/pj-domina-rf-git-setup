@@ -6,7 +6,9 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
-- domina(git-setup): comandos del workflow en ~/bin ([#1](https://github.com/robert-flo/git-setup/pull/1)). <!-- changelog-pr:1 -->
+- domina(git-setup): comandos del workflow en ~/bin ([#1](https://github.com/robert-flo/pj-domina-rf-git-setup/pull/1)). <!-- changelog-pr:1 -->
+
+- docs: 📝 Update repository links to pj-domina-rf-git-setup ([#2](https://github.com/robert-flo/pj-domina-rf-git-setup/pull/2)). <!-- changelog-pr:2 -->
 
 
 ## [0.3.0] - 2026-08-01
