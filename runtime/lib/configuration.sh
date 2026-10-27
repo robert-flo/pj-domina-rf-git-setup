@@ -109,6 +109,7 @@ remove_legacy_workflow_leftovers() {
 
   REMOVED_LEGACY_WORKFLOW_COMMANDS=0
   [[ -n ${LEGACY_WORKFLOW_COMMAND_DIR:-} && $WORKFLOW_COMMAND_DIR != "$LEGACY_WORKFLOW_COMMAND_DIR" ]] || return 0
+  [[ ! $WORKFLOW_COMMAND_DIR -ef $LEGACY_WORKFLOW_COMMAND_DIR ]] || return 0
 
   display_dir="${LEGACY_WORKFLOW_COMMAND_DIR/#$HOME/\~}"
   for workflow_file in "${workflow_files[@]}"; do
@@ -147,7 +148,15 @@ install_managed_workflow_commands() {
       print_error "Missing portable workflow companion: $workflow_file"
       return 1
     }
-    if [[ -e $WORKFLOW_COMMAND_DIR/$workflow_file ]]; then action="Updated"; else action="Created"; fi
+    if [[ -e $WORKFLOW_COMMAND_DIR/$workflow_file || -L $WORKFLOW_COMMAND_DIR/$workflow_file ]]; then
+      if ! is_managed_workflow_file "$WORKFLOW_COMMAND_DIR/$workflow_file" "$workflow_file"; then
+        print_warn "kept unrelated ${WORKFLOW_COMMAND_DIR/#$HOME/\~}/$workflow_file"
+        continue
+      fi
+      action="Updated"
+    else
+      action="Created"
+    fi
     cp "$workflow_source_dir/$workflow_file" "$WORKFLOW_COMMAND_DIR/$workflow_file"
     chmod 0755 "$WORKFLOW_COMMAND_DIR/$workflow_file"
     print_success "$action: ${WHITE}$WORKFLOW_COMMAND_DIR/$workflow_file${NC}"

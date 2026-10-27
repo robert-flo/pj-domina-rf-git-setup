@@ -53,7 +53,7 @@ do_clean() {
   echo -e "    ${GRAY}Managed Workflow Commands:${NC}"
   echo -e "      • ${display_bin_dir}/{a,c,cm,ac,p,l,st,s,d,lg,af,fuck,bye,clean,df,fc,fm}"
   echo -e "      • ${display_bin_dir}/.git-workflow"
-  if [[ -n ${LEGACY_WORKFLOW_COMMAND_DIR:-} && $WORKFLOW_COMMAND_DIR != "$LEGACY_WORKFLOW_COMMAND_DIR" ]]; then
+  if [[ -n ${LEGACY_WORKFLOW_COMMAND_DIR:-} && $WORKFLOW_COMMAND_DIR != "$LEGACY_WORKFLOW_COMMAND_DIR" && ! $WORKFLOW_COMMAND_DIR -ef $LEGACY_WORKFLOW_COMMAND_DIR ]]; then
     echo -e "      • ~/.local/bin/{a,c,cm,ac,p,l,st,s,d,lg,af,fuck,bye,clean,df,fc,fm} ${GRAY}(managed leftovers, if present)${NC}"
     echo -e "      • ~/.local/bin/.git-workflow ${GRAY}(managed leftover, if present)${NC}"
   fi
@@ -138,10 +138,13 @@ do_clean() {
   for workflow_command in \
     .git-workflow \
     a c cm ac p l st s d lg af fuck bye clean df fc fm; do
-    if [[ -f $WORKFLOW_COMMAND_DIR/$workflow_command ]]; then
+    [[ -e $WORKFLOW_COMMAND_DIR/$workflow_command || -L $WORKFLOW_COMMAND_DIR/$workflow_command ]] || continue
+    if is_managed_workflow_file "$WORKFLOW_COMMAND_DIR/$workflow_command" "$workflow_command"; then
       rm -f "$WORKFLOW_COMMAND_DIR/$workflow_command"
       print_success "Removed ${GRAY}${WORKFLOW_COMMAND_DIR/#$HOME/\~}/$workflow_command${NC}"
       ((removed_workflow_commands += 1))
+    else
+      print_warn "kept unrelated ${WORKFLOW_COMMAND_DIR/#$HOME/\~}/$workflow_command"
     fi
   done
   remove_legacy_workflow_leftovers clean
