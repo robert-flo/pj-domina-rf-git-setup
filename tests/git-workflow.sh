@@ -174,6 +174,6 @@ done
 )
 sed -E 's/\x1B\[[0-9;]*m//g' "$TEST_ROOT/direct-ds-dirty" > "$TEST_ROOT/direct-ds-dirty-plain"
 grep -Fq ' M tracked.txt' "$TEST_ROOT/direct-ds-dirty-plain" || fail 'ds did not print the short status line'
-grep -Fq '+modified' "$TEST_ROOT/direct-ds-dirty-plain" || fail 'ds did not print the diff'
+grep -Eq '\+[[:space:]]*modified' "$TEST_ROOT/direct-ds-dirty-plain" || fail 'ds did not print the diff'
 
 printf 'PASS: managed workflow status preserves its public surfaces\n'
