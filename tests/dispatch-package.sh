@@ -66,7 +66,7 @@ STUB
 chmod +x "$TEST_BIN/gh"
 export DEFAULT_BRANCH="master"
 
-run_dispatch() { # run_dispatch <conclusion> <head_branch> <head_sha>
+run_dispatch() { # run_dispatch <conclusion> <head_branch> <head_sha> [event] (default push)
   : > "$STUB_DIR/gh-calls"
   # Aislado: el PATH del script contiene SOLO el gh de mentira, ninguna
   # llamada puede llegar al gh real ni a la red.
