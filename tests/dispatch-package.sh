@@ -28,6 +28,8 @@ grep -qF -- "- ${ci_name}" "$WORKFLOW" || \
   fail "the workflow_run trigger must watch the CI workflow '${ci_name}'"
 grep -qF "github.event.workflow_run.conclusion == 'success'" "$WORKFLOW" || \
   fail 'the job must require a successful CI conclusion'
+grep -qF "github.event.workflow_run.event == 'push'" "$WORKFLOW" || \
+  fail 'the job must require a push event on the watched run (no pull_request runs)'
 grep -qF 'secrets.ARCH_DISPATCH_TOKEN' "$WORKFLOW" || \
   fail 'the dispatch token must come from the ARCH_DISPATCH_TOKEN secret'
 
@@ -71,7 +73,7 @@ run_dispatch() { # run_dispatch <conclusion> <head_branch> <head_sha>
   PATH="$TEST_BIN" \
   DEFAULT_BRANCH="$DEFAULT_BRANCH" \
   GITHUB_REPOSITORY="$SOURCE_REPO" \
-  WF_CONCLUSION="$1" WF_HEAD_BRANCH="$2" WF_HEAD_SHA="$3" \
+  WF_CONCLUSION="$1" WF_HEAD_BRANCH="$2" WF_HEAD_SHA="$3" WF_EVENT="${4:-push}" \
     /bin/bash "$script" >"$TEST_ROOT/out" 2>&1
 }
 
@@ -99,6 +101,13 @@ run_dispatch failure master 2222222222222222222222222222222222222222
 [[ -z "$(dispatch_calls)" ]] || fail 'a failed CI run must not dispatch'
 run_dispatch success fo/otra-rama 3333333333333333333333333333333333333333
 [[ -z "$(dispatch_calls)" ]] || fail 'a non-default branch must not dispatch'
+
+# Run de pull_request (ci.yml corre en pull_request y workflow_run dispara
+# por esos runs) con CI verde y una rama de fork llamada como la default:
+# nada, el rechazo es por el evento del run, no por inferencia de rama.
+run_dispatch success master 5555555555555555555555555555555555555555 pull_request
+[[ -z "$(dispatch_calls)" ]] || \
+  fail 'a pull_request run must not dispatch, even green on a branch named like the default'
 
 # Sin hardcodeo: si la default fuera otra (main), la rama main despacha.
 DEFAULT_BRANCH=main run_dispatch success main 4444444444444444444444444444444444444444

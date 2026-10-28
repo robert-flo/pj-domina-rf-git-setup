@@ -18,18 +18,26 @@ jobs:
   dispatch-package:
     name: Dispatch package build to the -arch duo
     runs-on: ubuntu-latest
-    if: github.event.workflow_run.conclusion == 'success'
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
     steps:
       - name: Dispatch package build
         env:
           # Token fine-grained con permiso actions:write sobre el repo -arch.
           GH_TOKEN: ${{ secrets.ARCH_DISPATCH_TOKEN }}
           GH_HOST: github.com
+          WF_EVENT: ${{ github.event.workflow_run.event }}
           WF_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
           WF_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           WF_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
+
+          # Solo commits: los runs de pull_request (ci.yml corre en
+          # pull_request) no despachan, sin importar el nombre de su rama.
+          if [[ "${WF_EVENT}" != "push" ]]; then
+            echo "run vigilado de evento '${WF_EVENT}': no despacho el empaquetado."
+            exit 0
+          fi
 
           # Sin CI verde no hay paquete.
           if [[ "${WF_CONCLUSION}" != "success" ]]; then
