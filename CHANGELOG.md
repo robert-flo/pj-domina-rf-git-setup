@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- ci: sync-arch.yml, sync de metadatos de los -arch por PR con automerge ([#18](https://github.com/robert-flo/pj-domina-rf-git-setup/pull/18)). <!-- changelog-pr:18 -->
+
 - ci: dispatch-package.yml, disparo del empaquetado del duo -arch por CI verde ([#15](https://github.com/robert-flo/pj-domina-rf-git-setup/pull/15)). <!-- changelog-pr:15 -->
 
 - feat: ✨ Add ds workflow command (short status + diff) ([#4](https://github.com/robert-flo/pj-domina-rf-git-setup/pull/4)). <!-- changelog-pr:4 -->
