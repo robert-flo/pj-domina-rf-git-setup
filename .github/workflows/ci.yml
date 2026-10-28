@@ -111,6 +111,10 @@ jobs:
         shell: bash
         run: bash tests/changelog-automation.sh
 
+      - name: Run dispatch-package workflow tests
+        shell: bash
+        run: bash tests/dispatch-package.sh
+
   docker-runtime:
     name: Smoke test relocated Docker runtime (${{ matrix.environment }})
     runs-on: ubuntu-latest
