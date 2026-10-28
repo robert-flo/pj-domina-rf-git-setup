@@ -1,0 +1,69 @@
+name: Sync -arch package metadata
+
+# spec despliegue-duo-arch-por-commit, ticket #8: cuando el CI queda verde
+# en la rama default, actualiza los metadatos de empaquetado de los repos
+# -arch (pkgver, pkgrel y checksum del tarball donde no es SKIP) por PR con
+# automerge solo en CI verde. El wrapper vendido no se toca: es propiedad
+# del -arch; el launcher real viaja en el tarball y llega a los usuarios con
+# el siguiente build del paquete.
+#
+# Requiere el secret ARCH_DISPATCH_TOKEN (el mismo del dispatch de
+# package.yml) con contents:write, pull_requests:write y actions:read sobre
+# los dos repos -arch.
+
+on:
+  workflow_run:
+    workflows:
+      - Validate master changes
+    types:
+      - completed
+
+permissions:
+  actions: read
+
+jobs:
+  sync-arch:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch_repo:
+          - pj-domina-rf-git-setup-arch
+          - pj-domina-rf-shared_dir-arch
+    steps:
+      - name: Checkout the source at the watched commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Checkout the -arch repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.arch_repo }}
+          ref: ${{ github.event.workflow_run.head_branch }}
+          token: ${{ secrets.ARCH_DISPATCH_TOKEN }}
+          path: arch
+
+      - name: Sync package metadata by PR
+        env:
+          GH_TOKEN: ${{ secrets.ARCH_DISPATCH_TOKEN }}
+          TARGET_REPO: ${{ matrix.arch_repo }}
+          ARCH_DIR: ${{ github.workspace }}/arch
+        run: |
+          set -Eeuo pipefail
+
+          default_branch="$(gh api "repos/${GITHUB_REPOSITORY}" --jq .default_branch)"
+          if [[ "${{ github.event.workflow_run.head_branch }}" != "$default_branch" ]]; then
+            echo "evento de la rama ${{ github.event.workflow_run.head_branch }}: solo la default dispara el sync."
+            exit 0
+          fi
+
+          git config user.name "Roberto Flores"
+          git config user.email "25asab015@ujmd.edu.sv"
+          git -C "$ARCH_DIR" config user.name "Roberto Flores"
+          git -C "$ARCH_DIR" config user.email "25asab015@ujmd.edu.sv"
+
+          bash .github/scripts/sync-arch.sh sync
