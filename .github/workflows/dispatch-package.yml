@@ -1,0 +1,53 @@
+name: Dispatch package build
+
+# Empaquetado del duo -arch por commit (spec despliegue-duo-arch-por-commit,
+# ticket 1): cuando el CI queda verde en la rama default de esta fuente,
+# despacha `source-updated` al repo -arch para que construya el paquete.
+
+on:
+  workflow_run:
+    workflows:
+      - Validate master changes
+    types:
+      - completed
+
+permissions:
+  actions: read
+
+jobs:
+  dispatch-package:
+    name: Dispatch package build to the -arch duo
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    steps:
+      - name: Dispatch package build
+        env:
+          # Token fine-grained con permiso actions:write sobre el repo -arch.
+          GH_TOKEN: ${{ secrets.ARCH_DISPATCH_TOKEN }}
+          GH_HOST: github.com
+          WF_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          WF_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          WF_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          # Sin CI verde no hay paquete.
+          if [[ "${WF_CONCLUSION}" != "success" ]]; then
+            echo "CI terminó '${WF_CONCLUSION}': no despacho el empaquetado."
+            exit 0
+          fi
+
+          # La rama vigilada es la default de la fuente, resuelta por API
+          # (nunca hardcodeada: master, main o personal dan igual).
+          default_branch="$(gh api "repos/${GITHUB_REPOSITORY}" --jq .default_branch)"
+          if [[ "${WF_HEAD_BRANCH}" != "${default_branch}" ]]; then
+            echo "rama '${WF_HEAD_BRANCH}' no es la default ('${default_branch}'): no despacho el empaquetado."
+            exit 0
+          fi
+
+          arch_repo="${GITHUB_REPOSITORY}-arch"
+          gh api "repos/${arch_repo}/dispatches" \
+            -f event_type=source-updated \
+            -f "client_payload[repo]=${GITHUB_REPOSITORY}" \
+            -f "client_payload[sha]=${WF_HEAD_SHA}"
+          echo "despachado source-updated a ${arch_repo} (${WF_HEAD_SHA})."
