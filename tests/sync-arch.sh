@@ -14,6 +14,10 @@
 
 set -Eeuo pipefail
 
+# Intencionales: ok/fail en una linea (SC2015) y entorno exportado solo
+# dentro del subshell que corre el script contra el fixture (SC2030/SC2031).
+# shellcheck disable=SC2015,SC2030,SC2031
+
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 SYNC_SCRIPT="${ROOT_DIR}/.github/scripts/sync-arch.sh"
 [[ -f $SYNC_SCRIPT ]] || { printf 'no encuentro %s\n' "$SYNC_SCRIPT" >&2; exit 1; }
@@ -102,10 +106,10 @@ sha256sums=(
 PKGBUILD
   cat > "${dir}/.SRCINFO" <<SRCINFO
 pkgbase = ${pkgname}
-	pkgver = 0.2.0
-	pkgrel = 3
-	sha256sums = ${tarball_entry}
-	sha256sums = e1940018f1f1f042fdb697fdfcf022076cfcd2821c3689aaa3fd5c6d3583f150
+\tpkgver = 0.2.0
+\tpkgrel = 3
+\tsha256sums = ${tarball_entry}
+\tsha256sums = e1940018f1f1f042fdb697fdfcf022076cfcd2821c3689aaa3fd5c6d3583f150
 SRCINFO
   printf '#!/usr/bin/env bash\nexec /opt/%s/%s "$@"\n' "$pkgname" "$pkgname" > "${dir}/${pkgname}"
   git -C "$dir" init -q -b master
